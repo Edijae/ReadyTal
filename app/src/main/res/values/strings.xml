@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Bitmap Manipulator</string>
+
+    <string name="select_image">Select Image</string>
+    <string name="process_image_failure">Failed to process image!</string>
+    <string name="share_image_success">Image shared successfully!</string>
+    <string name="share_with">Share with</string>
+
+</resources>
