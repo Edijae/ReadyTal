@@ -88,7 +88,7 @@ final class ImageProcessor {
                         }
                     });
                 }catch (Exception exception){
-                    Log.e("ImageProcessor", "doOnBackground: "+exception.getMessage() );
+                    exception.printStackTrace();
                     callCallbackOnMainThread(new AsyncJob.OnMainThreadJob() {
                         @Override
                         public void doInUIThread() {
