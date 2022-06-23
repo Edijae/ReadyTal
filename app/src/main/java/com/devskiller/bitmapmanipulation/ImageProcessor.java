@@ -9,7 +9,9 @@ import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.location.Location;
 import android.net.Uri;
-import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.exifinterface.media.ExifInterface;
 
 import com.arasthel.asyncjob.AsyncJob;
 
@@ -19,9 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import androidx.annotation.NonNull;
-import androidx.exifinterface.media.ExifInterface;
 
 final class ImageProcessor {
 
@@ -61,6 +60,7 @@ final class ImageProcessor {
                 final String fileName = "bitmapmanipulator_" + System.currentTimeMillis() + ".jpeg";
                 new File(outputDirectoryPath).mkdirs();
                 final String outputPath = (outputDirectoryPath + fileName);
+                boolean success = true;
 
                 //START CHANGES
                 try{
@@ -70,31 +70,44 @@ final class ImageProcessor {
                     BitmapFactory.decodeStream(input, null, options);
 
                     // Calculate inSampleSize
-                    options.inSampleSize = calculateInSampleSize(options,mMaxDimension);
+                    int sampleSize = calculateInSampleSize(options,mMaxDimension);
 
                     // Decode bitmap with inSampleSize set
-                    options.inJustDecodeBounds = false;
+                    BitmapFactory.Options options2 = new BitmapFactory.Options();
+                    options2.inJustDecodeBounds = false;
+                    options2.inSampleSize = sampleSize;
+
                     InputStream input2 = mContentResolver.openInputStream(streamSource);
-                    Bitmap bitmap = BitmapFactory.decodeStream(input2, null, options);
+                    Bitmap bitmap = BitmapFactory.decodeStream(input2, null, options2);
                     Bitmap inverted = invert(bitmap);
-                    FileOutputStream outputStream = new FileOutputStream(outputPath);
+                    bitmap.recycle();
+
+                    File out = new File(outputPath);
+                    FileOutputStream outputStream = new FileOutputStream(out);
                     inverted.compress(Bitmap.CompressFormat.JPEG,COMPRESS_QUALITY_HINT,outputStream);
                     outputStream.close();
-                    addExtraData(outputPath,note, location);
-                    callCallbackOnMainThread(new AsyncJob.OnMainThreadJob() {
-                        @Override
-                        public void doInUIThread() {
-                            callback.onSuccess(outputPath);
-                        }
-                    });
+                    inverted.recycle();
                 }catch (Exception exception){
                     exception.printStackTrace();
+                    success = false;
+                }finally {
+                    final boolean finalSuccess = success;
                     callCallbackOnMainThread(new AsyncJob.OnMainThreadJob() {
                         @Override
                         public void doInUIThread() {
-                            callback.onFailure();
+                            if(finalSuccess){
+                                callback.onSuccess(outputPath);
+                            }else
+                                callback.onFailure();
                         }
                     });
+                    if(success){
+                        try {
+                            addExtraData(outputPath,note, location);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
                 //END CHANGES
             }
@@ -107,7 +120,8 @@ final class ImageProcessor {
         int width = src.getWidth();
 
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
+        Canvas canvas = new Canvas();
+        canvas.setBitmap(bitmap);
         Paint paint = new Paint();
 
         ColorMatrix matrixGrayscale = new ColorMatrix();
